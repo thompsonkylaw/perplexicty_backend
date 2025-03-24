@@ -35,6 +35,7 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         
         payload = {
             "model": "sonar-deep-research",
+            # "model": "sonar-pro",
             "messages": messages,
             "max_tokens": 2000,  # Increased token limit
             # "temperature": 0.7,
