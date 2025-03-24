@@ -33,11 +33,18 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         
         url = "https://api.perplexity.ai/chat/completions"
         
+        # Add system message with instructions
+        system_message = {
+            "role": "system",
+            "content": "你是一個保險產品比較助手，專門回答關於保險產品比較的問題。如果用戶的問題不是保險產品，請回覆：'非保險產品類別相關問題無法回答'。"
+        }
+        
+        # Create modified messages array with system message first
+        modified_messages = [system_message] + messages
+        
         payload = {
             "model": "sonar-deep-research",
-            # "model": "sonar",
-            
-            "messages": messages,
+            "messages": modified_messages,  # Use modified messages
             "max_tokens": 2000,
         }
         
