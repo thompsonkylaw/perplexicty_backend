@@ -35,11 +35,10 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         
         payload = {
             "model": "sonar-deep-research",
-            # "model": "sonar-pro",
+            # "model": "sonar",
+            
             "messages": messages,
-            "max_tokens": 2000,  # Increased token limit
-            # "temperature": 0.7,
-            # "stop": []
+            "max_tokens": 2000,
         }
         
         headers = {
@@ -53,7 +52,11 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         result = response.json()
         logger.info(f"API Response: {result}")
         
-        return {"message": result['choices'][0]['message']['content']}
+        # Replace the tags in the response
+        original_content = result['choices'][0]['message']['content']
+        modified_content = original_content.replace("<think>", "<產品比較助手>").replace("</think>", "</產品比較助手>")
+        
+        return {"message": modified_content}
         
     except requests.exceptions.HTTPError as e:
         logger.error(f"HTTP Error: {e.response.text}")
