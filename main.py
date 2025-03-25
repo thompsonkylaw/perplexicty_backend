@@ -42,7 +42,7 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         # Add system message with instructions
         system_message = {
             "role": "system",
-            "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異"
+            "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"
         }
         
         # Create modified messages array with system message first
