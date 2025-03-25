@@ -4,6 +4,7 @@ import os
 import requests
 import logging
 from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
@@ -26,8 +27,13 @@ PERPLEXITY_API_KEY = "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"
 if not PERPLEXITY_API_KEY:
     raise ValueError("Missing PERPLEXITY_API_KEY environment variable")
 
+DEEPSEEK_API_KEY = "sk-a96c8196a00241ee9f587cf1d1f1b99d"  # Consider moving to environment variable
+if not DEEPSEEK_API_KEY:
+    raise ValueError("Missing DEEPSEEK_API_KEY environment variable")
+
 @app.post("/api/chat")
 async def chat_endpoint(request: Request, messages: list[dict]):
+    
     try:
         logger.info(f"Received request with messages: {messages}")
         
@@ -36,14 +42,15 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         # Add system message with instructions
         system_message = {
             "role": "system",
-            "content": "你是一個保險產品比較助手，專門回答關於保險產品比較的問題。如果用戶的問題不是保險產品，請回覆：'非保險產品類別相關問題無法回答'。"
+            "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異"
         }
         
         # Create modified messages array with system message first
         modified_messages = [system_message] + messages
         
         payload = {
-            "model": "sonar-deep-research",
+            # "model": "sonar-deep-research",
+            "model": "r1-1776",
             "messages": modified_messages,  # Use modified messages
             "max_tokens": 2000,
         }
@@ -70,4 +77,35 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ds")
+async def deepseek_endpoint(request: Request, messages: list[dict]):
+    
+    try:
+        logger.info(f"Received DeepSeek request with messages: {messages}")
+        
+        client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+        
+        # Add system message if not already present
+        if messages and messages[0]["role"] != "system":
+            system_message = {"role": "system", "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異"}
+            modified_messages = [system_message] + messages
+        else:
+            modified_messages = messages
+        
+        response = client.chat.completions.create(
+            model="deepseek-reasoner",
+            # model="deepseek-chat",
+            messages=modified_messages,
+            stream=False
+        )
+        
+        result = response.choices[0].message.content
+        logger.info(f"DeepSeek API Response: {result}")
+        
+        return {"message": result}
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in DeepSeek endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
