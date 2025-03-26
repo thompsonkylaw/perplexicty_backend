@@ -89,7 +89,7 @@ async def deepseek_endpoint(request: Request, messages: list[dict]):
         
         # Add system message if not already present
         if messages and messages[0]["role"] != "system":
-            system_message = {"role": "system", "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異"}
+            system_message = {"role": "system", "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"}
             modified_messages = [system_message] + messages
         else:
             modified_messages = messages
