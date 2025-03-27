@@ -34,42 +34,47 @@ if not DEEPSEEK_API_KEY:
     raise ValueError("Missing DEEPSEEK_API_KEY environment variable")
 
 
-# @app.post("/api/ppxty")
-# async def chat_endpoint(request: Request, messages: list[dict]):
-#     try:
-#         logger.info(f"Received request with messages: {messages}")
+@app.post("/api/ppxty")
+async def chat_endpoint(request: Request, messages: list[dict]):
+    try:
+        logger.info(f"Received request with messages: {messages}")
         
-#         url = "https://api.perplexity.ai/chat/completions"
+        url = "https://api.perplexity.ai/chat/completions"
         
-#         payload = {
-#             "model": "r1-1776",
-#             "messages": messages,
-#             "max_tokens": 2000,
-#         }
+        payload = {
+            "model": "r1-1776",
+            "messages": messages,
+            "max_tokens": 2000,
+        }
         
-#         headers = {
-#             "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
-#             "Content-Type": "application/json"
-#         }
+        headers = {
+            "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+            "Content-Type": "application/json"
+        }
         
-#         async with httpx.AsyncClient() as client:
-#             response = await client.post(url, json=payload, headers=headers)
-#             response.raise_for_status()
-        
-#         result = response.json()
-#         logger.info(f"API Response: {result}")
-        
-#         original_content = result['choices'][0]['message']['content']
-#         modified_content = original_content.replace("<think>", "<AIM AI助手>").replace("</think>", "</AIM AI助手>")
-        
-#         return {"message": modified_content}
-        
-#     except httpx.HTTPStatusError as e:
-#         logger.error(f"HTTP Error: {e.response.text}")
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
-#     except Exception as e:
-#         logger.error(f"Unexpected error: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"API Response: {result}")
+            
+            original_content = result['choices'][0]['message']['content']
+            modified_content = original_content.replace("<think>", "<AIM AI助手>").replace("</think>", "</AIM AI助手>")
+            
+            return {"message": modified_content}
+            
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP Error: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # DeepSeek endpoint with asynchronous OpenAI client
 @app.post("/api/ds")
@@ -98,53 +103,53 @@ async def deepseek_endpoint(request: Request, messages: list[dict]):
 
     
     
-@app.post("/api/ppxty")
-async def chat_endpoint(request: Request, messages: list[dict]):
+# @app.post("/api/ppxty")
+# async def chat_endpoint(request: Request, messages: list[dict]):
     
-    try:
-        logger.info(f"Received request with messages: {messages}")
+#     try:
+#         logger.info(f"Received request with messages: {messages}")
         
-        url = "https://api.perplexity.ai/chat/completions"
+#         url = "https://api.perplexity.ai/chat/completions"
         
-        # Add system message with instructions
-        # system_message = {
-        #     "role": "system",
-        #     "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"
-        # }
+#         # Add system message with instructions
+#         # system_message = {
+#         #     "role": "system",
+#         #     "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"
+#         # }
         
-        # Create modified messages array with system message first
-        # modified_messages = [system_message] + messages
+#         # Create modified messages array with system message first
+#         # modified_messages = [system_message] + messages
         
-        payload = {
-            # "model": "sonar-deep-research",
-            "model": "r1-1776",
-            "messages": messages,  # Use modified messages
-            "max_tokens": 2000,
-        }
+#         payload = {
+#             # "model": "sonar-deep-research",
+#             "model": "r1-1776",
+#             "messages": messages,  # Use modified messages
+#             "max_tokens": 2000,
+#         }
         
-        headers = {
-            "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
-            "Content-Type": "application/json"
-        }
+#         headers = {
+#             "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+#             "Content-Type": "application/json"
+#         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+#         response = requests.post(url, json=payload, headers=headers)
+#         response.raise_for_status()
         
-        result = response.json()
-        logger.info(f"API Response: {result}")
+#         result = response.json()
+#         logger.info(f"API Response: {result}")
         
-        # Replace the tags in the response
-        original_content = result['choices'][0]['message']['content']
-        modified_content = original_content.replace("<think>", "<AIM AI助手>").replace("</think>", "</AIM AI助手>")
+#         # Replace the tags in the response
+#         original_content = result['choices'][0]['message']['content']
+#         modified_content = original_content.replace("<think>", "<AIM AI助手>").replace("</think>", "</AIM AI助手>")
         
-        return {"message": modified_content}
+#         return {"message": modified_content}
         
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"HTTP Error: {e.response.text}")
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))   
+#     except requests.exceptions.HTTPError as e:
+#         logger.error(f"HTTP Error: {e.response.text}")
+#         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+#     except Exception as e:
+#         logger.error(f"Unexpected error: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))   
     
 # @app.post("/api/ds")
 # async def deepseek_endpoint(request: Request, messages: list[dict]):
