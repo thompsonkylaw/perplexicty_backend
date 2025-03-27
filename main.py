@@ -31,7 +31,14 @@ DEEPSEEK_API_KEY = "sk-a96c8196a00241ee9f587cf1d1f1b99d"  # Consider moving to e
 if not DEEPSEEK_API_KEY:
     raise ValueError("Missing DEEPSEEK_API_KEY environment variable")
 
-@app.post("/api/chat")
+
+    
+    
+
+
+    
+    
+@app.post("/api/ppxty")
 async def chat_endpoint(request: Request, messages: list[dict]):
     
     try:
@@ -40,18 +47,18 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         url = "https://api.perplexity.ai/chat/completions"
         
         # Add system message with instructions
-        system_message = {
-            "role": "system",
-            "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"
-        }
+        # system_message = {
+        #     "role": "system",
+        #     "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"
+        # }
         
         # Create modified messages array with system message first
-        modified_messages = [system_message] + messages
+        # modified_messages = [system_message] + messages
         
         payload = {
             # "model": "sonar-deep-research",
             "model": "r1-1776",
-            "messages": modified_messages,  # Use modified messages
+            "messages": messages,  # Use modified messages
             "max_tokens": 2000,
         }
         
@@ -77,8 +84,8 @@ async def chat_endpoint(request: Request, messages: list[dict]):
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(status_code=500, detail=str(e))   
+    
 @app.post("/api/ds")
 async def deepseek_endpoint(request: Request, messages: list[dict]):
     
@@ -88,16 +95,16 @@ async def deepseek_endpoint(request: Request, messages: list[dict]):
         client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
         
         # Add system message if not already present
-        if messages and messages[0]["role"] != "system":
-            system_message = {"role": "system", "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"}
-            modified_messages = [system_message] + messages
-        else:
-            modified_messages = messages
+        # if messages and messages[0]["role"] != "system":
+        #     system_message = {"role": "system", "content": "用超級詳盡的方式比較, 例如要有基礎保單架構,核心保障差異,所有比較都是用表格形式顯示"}
+        #     modified_messages = [system_message] + messages
+        # else:
+        #     modified_messages = messages
         
         response = client.chat.completions.create(
             model="deepseek-reasoner",
             # model="deepseek-chat",
-            messages=modified_messages,
+            messages=messages,
             stream=False
         )
         
@@ -109,3 +116,4 @@ async def deepseek_endpoint(request: Request, messages: list[dict]):
     except Exception as e:
         logger.error(f"Unexpected error in DeepSeek endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+         
