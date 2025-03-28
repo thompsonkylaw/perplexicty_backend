@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import httpx
 from openai import AsyncOpenAI
+from pydantic import BaseModel
+from typing import List, Dict
 
 load_dotenv()
 
@@ -19,7 +21,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+class ChatRequest(BaseModel):
+    messages: List[Dict]
+    model: str
+    
+    
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,16 +39,23 @@ DEEPSEEK_API_KEY = "sk-a96c8196a00241ee9f587cf1d1f1b99d"  # Consider moving to e
 if not DEEPSEEK_API_KEY:
     raise ValueError("Missing DEEPSEEK_API_KEY environment variable")
 
+GOOGLE_API_KEY = "AIzaSyCihsIc9SAbQApcGcZlhwcsobzNNoDtz-s"
+GOOGLE_CX = "9280abb2866c5441d"
+
 
 @app.post("/api/ppxty")
-async def chat_endpoint(request: Request, messages: list[dict]):
+# async def chat_endpoint(request: Request, messages: list[dict]):
+async def chat_endpoint(chat_request: ChatRequest):    
     try:
+        messages = chat_request.messages
+        model = chat_request.model
         logger.info(f"Received request with messages: {messages}")
         
         url = "https://api.perplexity.ai/chat/completions"
         
         payload = {
-            "model": "r1-1776",
+            # "model": "r1-1776",
+            "model": model,
             "messages": messages,
             "max_tokens": 2000,
         }
@@ -78,14 +91,18 @@ async def chat_endpoint(request: Request, messages: list[dict]):
 
 # DeepSeek endpoint with asynchronous OpenAI client
 @app.post("/api/ds")
-async def deepseek_endpoint(request: Request, messages: list[dict]):
+# async def deepseek_endpoint(request: Request, messages: list[dict]):
+async def deepseek_endpoint(chat_request: ChatRequest):
     try:
+        messages = chat_request.messages
+        model = chat_request.model
         logger.info(f"Received DeepSeek request with messages: {messages}")
         
         client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
         
         response = await client.chat.completions.create(
-            model="deepseek-reasoner",
+            # model="deepseek-reasoner",
+            model=model,
             messages=messages,
             stream=False
         )
@@ -100,6 +117,94 @@ async def deepseek_endpoint(request: Request, messages: list[dict]):
         raise HTTPException(status_code=500, detail=str(e))    
     
 
+@app.post("/api/dswithsearch")
+# async def deepseek_endpoint(request: Request, messages: list[dict]):
+async def deepseek_endpoint(chat_request: ChatRequest):
+    try:
+        # 验证环境变量
+        messages = chat_request.messages
+        model = chat_request.model
+        if not all([DEEPSEEK_API_KEY, GOOGLE_API_KEY, GOOGLE_CX]):
+            raise RuntimeError("Missing API credentials in environment variables")
+        logger.info(f"Received DeepSeek request with messages: {messages}")
+        # 提取搜索查询
+        search_query = next(
+            (msg["content"] for msg in reversed(messages) 
+            if msg["role"] == "user"
+        ), None)
+        search_results = []
+        if search_query:
+            try:
+                async with httpx.AsyncClient() as client:
+                    # 先验证API连通性
+                    # test_params = {
+                    #     "key": GOOGLE_API_KEY,
+                    #     "cx": GOOGLE_CX,
+                    #     "q": "API connectivity test",
+                    #     "num": 1
+                    # }
+                    # test_response = await client.get(
+                    #     "https://www.googleapis.com/customsearch/v1",
+                    #     params=test_params
+                    # )
+                    # test_response.raise_for_status()
+                    # 执行实际搜索
+                    search_params = {
+                        "key": GOOGLE_API_KEY,
+                        "cx": GOOGLE_CX,
+                        "q": search_query,
+                        "num": 10,
+                        "hl": "zh-CN"  # 添加中文语言优化
+                    }
+                    response = await client.get(
+                        "https://www.googleapis.com/customsearch/v1",
+                        params=search_params
+                    )
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    search_results = data.get("items", [])
+                    logger.info(f"Google search returned {len(search_results)} results")
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Google API error: {e.response.text}")
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Search service error: {e.response.text}"
+                )
+            except Exception as e:
+                logger.warning(f"Google search failed: {str(e)}")
+                search_results = []
+        # Build search context if results found
+        if search_results:
+            search_context = "Latest web search results:\n"
+            for idx, item in enumerate(search_results[:3], 1):  # Use top 3 results
+                search_context += (
+                    f"{idx}. [{item.get('title', 'No title')}]({item.get('link', '')})\n"
+                    f"{item.get('snippet', 'No description available')}\n\n"
+                )
+            
+            # Insert search context before the last user message
+            for idx in reversed(range(len(messages))):
+                if messages[idx]["role"] == "user":
+                    messages.insert(idx, {"role": "system", "content": search_context})
+                    break
+        # Call DeepSeek API
+        print("messages",messages)
+        client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+        
+        response = await client.chat.completions.create(
+            # model="deepseek-reasoner",
+            model=model,
+            messages=messages,
+            stream=False
+        )
+        result = response.choices[0].message.content
+        logger.info(f"DeepSeek API response generated")
+        
+        return {"message": result}
+    except Exception as e:
+        logger.error(f"Endpoint error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))  
 
     
     
