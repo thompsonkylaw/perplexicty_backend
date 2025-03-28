@@ -121,6 +121,7 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 # async def deepseek_endpoint(request: Request, messages: list[dict]):
 async def deepseek_endpoint(chat_request: ChatRequest):
     try:
+        print("use deep search")
          # 预定义权威网站列表
         TRUSTED_INSURANCE_SITES = [
             # 保险公司
@@ -128,6 +129,8 @@ async def deepseek_endpoint(chat_request: ChatRequest):
             "site:aia.com.hk",
             "site:prudential.com.hk",
             "site:axa.com.hk",
+            "site:sunlife.com.hk",
+            "site:chubb.com",
             # 金融媒体
             "site:scmp.com",
             "site:hket.com",
