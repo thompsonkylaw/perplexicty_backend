@@ -121,7 +121,7 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 # async def deepseek_endpoint(request: Request, messages: list[dict]):
 async def deepseek_endpoint(chat_request: ChatRequest):
     try:
-        print("use deep search")
+        print("use deep searchxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
          # 预定义权威网站列表
         TRUSTED_INSURANCE_SITES = [
             # 保险公司
