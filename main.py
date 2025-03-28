@@ -42,6 +42,8 @@ if not DEEPSEEK_API_KEY:
 GOOGLE_API_KEY = "AIzaSyCihsIc9SAbQApcGcZlhwcsobzNNoDtz-s"
 GOOGLE_CX = "9280abb2866c5441d"
 
+GROK2_API_KEY = "xai-0fuJpGFlVbLHwO9Hi2p0uf5UWvTvViEYamWbBNpO0b78BxgKpngpmytYvdjH88ZpjOCULYpCy2fRFjSm"
+
 
 @app.post("/api/ppxty")
 # async def chat_endpoint(request: Request, messages: list[dict]):
@@ -237,7 +239,32 @@ async def deepseek_endpoint(chat_request: ChatRequest):
         logger.error(f"Endpoint error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))  
 
-    
+
+@app.post("/api/grok2")
+# async def deepseek_endpoint(request: Request, messages: list[dict]):
+async def grok2_endpoint(chat_request: ChatRequest):
+    try:
+        messages = chat_request.messages
+        model = chat_request.model
+        logger.info(f"Received Grok2 request with messages: {messages}")
+        
+        client = AsyncOpenAI(api_key=GROK2_API_KEY, base_url="https://api.x.ai/v1")
+        
+        response = await client.chat.completions.create(
+            # model="deepseek-reasoner",
+            model=model,
+            messages=messages,
+            # stream=False
+        )
+        
+        result = response.choices[0].message.content
+        logger.info(f"Grok2 API Response: {result}")
+        
+        return {"message": result}
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in Grok endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))        
     
 # @app.post("/api/ppxty")
 # async def chat_endpoint(request: Request, messages: list[dict]):
