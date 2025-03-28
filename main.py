@@ -121,6 +121,30 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 # async def deepseek_endpoint(request: Request, messages: list[dict]):
 async def deepseek_endpoint(chat_request: ChatRequest):
     try:
+         # 预定义权威网站列表
+        TRUSTED_INSURANCE_SITES = [
+            # 保险公司
+            "site:manulife.com.hk",
+            "site:aia.com.hk",
+            "site:prudential.com.hk",
+            "site:axa.com.hk",
+            # 金融媒体
+            "site:scmp.com",
+            "site:hket.com",
+            "site:ft.com",
+            # 比价平台
+            "site:moneyhero.com.hk",
+            "site:compareasia.com",
+            "site:policypal.com",
+            # 监管机构
+            "site:ia.hk",
+            "site:sfc.hk",
+            # 专业分析
+            "site:bloomberg.com",
+            "site:forbes.com"
+        ]
+        site_filters = f"({' OR '.join(TRUSTED_INSURANCE_SITES[:10])})"  # 取前10个避免超限
+        
         # 验证环境变量
         messages = chat_request.messages
         model = chat_request.model
@@ -149,12 +173,16 @@ async def deepseek_endpoint(chat_request: ChatRequest):
                     # )
                     # test_response.raise_for_status()
                     # 执行实际搜索
+                    enhanced_query = f"{search_query} {site_filters}"
                     search_params = {
                         "key": GOOGLE_API_KEY,
                         "cx": GOOGLE_CX,
-                        "q": search_query,
+                        "q": enhanced_query,
                         "num": 10,
-                        "hl": "zh-CN"  # 添加中文语言优化
+                        "hl": "zh-CN",
+                        "sort": "date",  # 优先最新内容
+                        "cr": "countryHK",  # 限定香港地区
+                        "gl": "hk"  # 香港谷歌版本
                     }
                     response = await client.get(
                         "https://www.googleapis.com/customsearch/v1",
@@ -177,7 +205,7 @@ async def deepseek_endpoint(chat_request: ChatRequest):
         # Build search context if results found
         if search_results:
             search_context = "Latest web search results:\n"
-            for idx, item in enumerate(search_results[:3], 1):  # Use top 3 results
+            for idx, item in enumerate(search_results[:10], 1):  # Use top 3 results
                 search_context += (
                     f"{idx}. [{item.get('title', 'No title')}]({item.get('link', '')})\n"
                     f"{item.get('snippet', 'No description available')}\n\n"
