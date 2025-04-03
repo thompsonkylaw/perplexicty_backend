@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 
 load_dotenv()
 
-IsProduction = False
+IsProduction = True
 
 app = FastAPI()
 
