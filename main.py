@@ -58,7 +58,7 @@ async def get_search_results(query: str) -> Optional[str]:
     """Get search results from SerpAPI"""
     if not SERPAPI_API_KEY:
         return None
-
+    print('SERPAPI_API_KEY',SERPAPI_API_KEY)
     params = {
         "engine": "google",
         "q": query,
@@ -159,8 +159,7 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 @app.post("/api/dswithsearch")
 async def deepseek_endpoint(chat_request: ChatRequest):
     # Get the latest user message
-    print('DEEPSEEK_API_KEY =',DEEPSEEK_API_KEY)
-    print('SERPAPI_API_KEY =',SERPAPI_API_KEY)
+
     latest_user_message = next(
         (msg for msg in reversed(chat_request.messages) if msg.get("role") == "user"),
         None
@@ -171,7 +170,7 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 
     # Get search results using the user's message content
     search_context = await get_search_results(latest_user_message.get("content", ""))
-
+    print('search_context=',search_context)
     # Prepare messages array
     messages = []
     if search_context:
@@ -183,33 +182,61 @@ async def deepseek_endpoint(chat_request: ChatRequest):
     
     # Add original messages
     messages.extend(chat_request.messages)
-
-    # Call DeepSeek API
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
     
-    payload = {
-        "messages": messages,
-        "model": chat_request.model,
-        "temperature": 0.7,
-        "max_tokens": 512
-    }
-
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.deepseek.com/v1/chat/completions",
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+        messages = chat_request.messages
+        model = chat_request.model
+        logger.info(f"Received DeepSeek request with messages: {messages}")
+        
+        client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+        
+        response = await client.chat.completions.create(
+            # model="deepseek-reasoner",
+            model=model,
+            messages=messages,
+            stream=False
+        )
+        
+        result = response.choices[0].message.content
+        logger.info(f"DeepSeek API Response: {result}")
+        
+        return {"message": result}
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error in DeepSeek endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))    
+
+    # # Call DeepSeek API
+    # headers = {
+    #     "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+    #     "Content-Type": "application/json"
+    # }
+    
+    # payload = {
+    #     "messages": messages,
+    #     "model": chat_request.model,
+    #     # "temperature": 0.7,
+    #     "max_tokens": 2000
+    # }
+
+    # try:
+    #     async with httpx.AsyncClient() as client:
+    #         response = await client.post(
+    #             "https://api.deepseek.com/v1/chat/completions",
+    #             headers=headers,
+    #             json=payload
+    #         )
+    #         response.raise_for_status()
+    #         return response.json()
+    # except httpx.HTTPStatusError as e:
+    #     raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    
+    
+    
 # lastone
 # @app.post("/api/dswithsearch")
 # # async def deepseek_endpoint(request: Request, messages: list[dict]):
