@@ -12,6 +12,8 @@ from typing import List, Dict, Optional
 
 load_dotenv()
 
+IsProduction = False
+
 app = FastAPI()
 
 # Configure CORS
@@ -57,33 +59,124 @@ class ChatRequest(BaseModel):
     messages: List[Dict]
     model: str
     
-async def get_search_results(query: str) -> Optional[str]:
-    """Get search results from SerpAPI"""
-    if not SERPAPI_API_KEY:
-        return None
-    print('SERPAPI_API_KEY',SERPAPI_API_KEY)
-    params = {
-        "engine": "google",
-        "q": query,
-        "api_key": SERPAPI_API_KEY,
-        "num": 3  # Get top 3 results
-    }
-
+async def get_serpapi_search_results(query: str):
+    """Get search results from specified domains using SerpAPI"""
+    target_sites = [
+        "site:manulife.com.hk",
+        "site:aia.com.hk",
+        "site:prudential.com.hk",
+        "site:axa.com.hk",
+        "site:sunlife.com.hk",
+        "site:chubb.com",
+        "site:scmp.com",
+        "site:hket.com",
+        "site:ft.com",
+        "site:moneyhero.com.hk",
+        "site:compareasia.com",
+        "site:policypal.com",
+        "site:ia.hk",
+        "site:sfc.hk",
+        "site:bloomberg.com",
+        "site:forbes.com"
+    ]
+    
     try:
+        # Construct search query
+        site_filter = f"({' OR '.join(target_sites)})"
+        full_query = f"{query} {site_filter}"
+        
+        # SerpAPI parameters
+        params = {
+            "engine": "google",
+            "q": full_query,
+            "api_key": SERPAPI_API_KEY,
+            "google_domain": "google.com.hk",
+            "hl": "en",  # English results
+            "gl": "hk",  # Hong Kong region
+            "num": 5      # Number of results
+        }
+        
         async with httpx.AsyncClient() as client:
             response = await client.get("https://serpapi.com/search", params=params)
             response.raise_for_status()
             data = response.json()
-
-            if "organic_results" in data:
-                return "\n".join([
-                    f"{result.get('title', '')}: {result.get('snippet', '')}"
-                    for result in data["organic_results"][:3]
-                ])
-    except Exception as e:
-        print(f"SerpAPI Error: {str(e)}")
+        
+        # Process results
+        search_context = []
+        for result in data.get("organic_results", [])[:5]:  # Top 5 results
+            context_entry = (
+                f"Title: {result.get('title', 'N/A')}\n"
+                f"Snippet: {result.get('snippet', 'No description available')}\n"
+                f"Link: {result.get('link', '')}"
+            )
+            search_context.append(context_entry)
+        
+        
+        return "\n\n".join(search_context) if search_context else "No relevant results found"
     
-    return None
+    except Exception as e:
+        logger.error(f"Search failed: {str(e)}")
+        return "Search service unavailable"
+
+async def get_google_search_results(query: str):
+    """Get search results using Google Custom Search JSON API"""
+    target_sites = [
+        "site:manulife.com.hk",
+        "site:aia.com.hk",
+        "site:prudential.com.hk",
+        "site:axa.com.hk",
+        "site:sunlife.com.hk",
+        "site:chubb.com",
+        "site:scmp.com",
+        "site:hket.com",
+        "site:ft.com",
+        "site:moneyhero.com.hk",
+        "site:compareasia.com",
+        "site:policypal.com",
+        "site:ia.hk",
+        "site:sfc.hk",
+        "site:bloomberg.com",
+        "site:forbes.com"
+    ]
+    
+    
+        
+    try:
+        site_filter = f"({' OR '.join(target_sites)})"
+        full_query = f"{query} {site_filter}"
+        
+        params = {
+            "key": GOOGLE_API_KEY,
+            "cx": GOOGLE_CX,
+            "q": full_query,
+            "num": 5,  # Get up to 5 results
+            "gl": "hk",  # Hong Kong region
+            "sort": "date",  # Sort by freshness
+            "fields": "items(title,link,snippet)"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://www.googleapis.com/customsearch/v1",
+                params=params
+            )
+            response.raise_for_status()
+            data = response.json()
+        
+        search_context = []
+        for result in data.get("items", [])[:5]:  # Limit to 5 results
+            context_entry = (
+                f"Title: {result.get('title', 'N/A')}\n"
+                f"Snippet: {result.get('snippet', 'No description available')}\n"
+                f"Link: {result.get('link', '')}"
+            )
+            search_context.append(context_entry)
+        
+        return "\n\n".join(search_context) if search_context else "No relevant results found"
+    
+    except Exception as e:
+        logger.error(f"Google search failed: {str(e)}")
+        return "Search service unavailable"
 
 @app.post("/api/ppxty")
 # async def chat_endpoint(request: Request, messages: list[dict]):
@@ -161,8 +254,7 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 
 @app.post("/api/dswithsearch")
 async def deepseek_endpoint(chat_request: ChatRequest):
-    # Get the latest user message
-
+    # Get latest user message
     latest_user_message = next(
         (msg for msg in reversed(chat_request.messages) if msg.get("role") == "user"),
         None
@@ -170,47 +262,45 @@ async def deepseek_endpoint(chat_request: ChatRequest):
     
     if not latest_user_message:
         raise HTTPException(status_code=400, detail="No user message found")
-
-    # Get search results using the user's message content
-    search_context = await get_search_results(latest_user_message.get("content", ""))
+    
+    # Get search context
+    search_context = await get_serpapi_search_results(latest_user_message.get("content", ""))
     
     
-    print('search_context=',search_context)
-    logger.info('search_context=',search_context)
+    if IsProduction:
+        logger.info("search_context=",search_context)
+    else:
+        print("search_context=",search_context)
+            
     # Prepare messages array
     messages = []
     if search_context:
-        # Add search context as a system message
         messages.append({
             "role": "system",
-            "content": f"Here are some recent search results:\n{search_context}"
+            "content": f"Current web search context:\n{search_context}\n\nUse this information to supplement your response."
         })
     
-    # Add original messages
     messages.extend(chat_request.messages)
     
+    if IsProduction:
+        logger.info("messages=",messages)
+    else:
+        print("messages=",messages)
+
     try:
-        messages = chat_request.messages
-        model = chat_request.model
-        logger.info(f"Received DeepSeek request with messages: {messages}")
-        
         client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
         
         response = await client.chat.completions.create(
-            # model="deepseek-reasoner",
-            model=model,
+            model=chat_request.model,
             messages=messages,
             stream=False
         )
         
-        result = response.choices[0].message.content
-        logger.info(f"DeepSeek API Response: {result}")
-        
-        return {"message": result}
+        return {"message": response.choices[0].message.content}
         
     except Exception as e:
-        logger.error(f"Unexpected error in DeepSeek endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))    
+        logger.error(f"DeepSeek error: {str(e)}")
+        raise HTTPException(status_code=500, detail="AI service error")
 
     # # Call DeepSeek API
     # headers = {
