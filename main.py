@@ -25,7 +25,10 @@ app.add_middleware(
     
     
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
@@ -170,7 +173,10 @@ async def deepseek_endpoint(chat_request: ChatRequest):
 
     # Get search results using the user's message content
     search_context = await get_search_results(latest_user_message.get("content", ""))
+    
+    
     print('search_context=',search_context)
+    logger.info('search_context=',search_context)
     # Prepare messages array
     messages = []
     if search_context:
